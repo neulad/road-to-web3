@@ -12,9 +12,10 @@ contract Staker {
     ExampleExternalContract public exampleExternalContract;
     mapping(address => uint256) public balances;
     mapping(address => uint256) public depositTimestamps;
-    uint256 public constant rewardRatePerSecond = 0.1 ether;
-    uint256 public withdrawalDeadline = block.timestamp + 120 seconds;
-    uint256 public claimDeadline = block.timestamp + 240 seconds;
+    // Rate
+    uint256 public constant rewardRatePerBlock = 1;
+    uint256 public withdrawalDeadlineBlock = block.number + 12;
+    uint256 public claimDeadlineBlock = block.number + 24;
     uint256 public currentBlock = 0;
 
     modifier withdrawalDeadlineReached(bool requireReached) {
@@ -50,10 +51,10 @@ contract Staker {
     }
 
     function withdrawalTimeLeft() public view returns (uint256) {
-        if (block.timestamp >= withdrawalDeadline) {
+        if (block.number >= withdrawalDeadlineBlock) {
             return (0);
         } else {
-            return (withdrawalDeadline - block.timestamp);
+            return (withdrawalDeadlineBlock - block.number);
         }
     }
 
@@ -64,7 +65,7 @@ contract Staker {
         claimDeadlineReached(false)
     {
         balances[msg.sender] = balances[msg.sender] + msg.value;
-        depositTimestamps[msg.sender] = block.timestamp;
+        depositTimestamps[msg.sender] = block.number;
         emit Stake(msg.sender, msg.value);
     }
 
@@ -76,9 +77,11 @@ contract Staker {
     {
         require(balances[msg.sender] > 0, "You have no balance to withdraw!");
         uint256 individualBalance = balances[msg.sender];
-        uint256 indBalanceRewards = individualBalance +
-            ((block.timestamp - depositTimestamps[msg.sender]) *
-                rewardRatePerSecond);
+        uint256 indBalanceRewards = (((100 + rewardRatePerBlock) **
+            (block.number - depositTimestamps[msg.sender])) *
+            individualBalance) /
+            (100 ** (block.number - depositTimestamps[msg.sender]));
+
         balances[msg.sender] = 0;
 
         // Transfer all ETH via call! (not transfer) cc: https://solidity-by-example.org/sending-ether
@@ -91,10 +94,10 @@ contract Staker {
     }
 
     function claimPeriodLeft() public view returns (uint256) {
-        if (block.timestamp >= claimDeadline) {
+        if (block.number >= claimDeadlineBlock) {
             return (0);
         } else {
-            return (claimDeadline - block.timestamp);
+            return (claimDeadlineBlock - block.number);
         }
     }
 
